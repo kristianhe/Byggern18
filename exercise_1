@@ -1,0 +1,118 @@
+** exercise_1
+//  char        signed char,             8-bit ASCII code						[0; 255]
+//  S8          signed tiny int          8-bit signed integer.                  [-128; +127]
+//  U8          unsigned tiny int        8-bit unsigned integer.                [0; +255]
+//  S16         signed short int        16-bit signed integer.					[-32768; +32767]
+//  U16         unsigned short int      16-bit unsigned integer.				[0; +65535]
+//  S32         signed long int         32-bit signed integer.					[-2,147,483,648; +2,147,483,647]
+//  U32         unsigned long int       32-bit unsigned integer.				[0; +4,294,967,295]
+//  S64         signed long long int    64-bit signed integer.
+//  U64         unsigned long long int  64-bit unsigned integer.
+//  F32         float                   32-bit floating-point decimal.
+//  F64         double                  64-bit floating-point decimal.
+
+#include <avr/io.h>
+#include <stdlib.h>
+#include <avr/interrupt.h>
+
+char arsendata [21];
+
+unsigned char Receive, send;
+
+
+#define F_CPU 4195200		// 4.9152 MHz = 4915200 / 16 MHz = 16000000
+#include <util/delay.h>	    // Nyttige vente-funksjoner (busy-wait / aktiv venting )
+
+#define set_bit(reg, bit) (reg |= (1 << bit))
+#define clear_bit(reg, bit) (reg &= ~(1 << bit))
+
+void USART_Init	( ) //unsigned int ubrr
+{
+	 //Usart
+	 UCSR0A = 0x00;
+	 UBRR0H = 0x00;
+	 UCSR0B = 0b11011000;// Bit 7: RXCIE0: RX Complete Interrupt Enable 0, Bit 4: RXEN0: Receiver Enable 0, Bit 3: TXEN0: Transmitter Enable 0
+	 UBRR0L = 0x19;// Baud Rate 9600 bps, fosc = 4195200 Hz,"fosc = 14.7456MHz", 25
+	
+	
+	
+	/*
+	// Setter BAUD-raten
+	UBRRH = (unsigned char)(ubrr>>8);
+	UBRRL = (unsigned char)ubrr;
+	
+	// Slår på receiver (RXEN) og transmitter (TXEN)
+	UCSRB = (1<<RXEN)|(1<<TXEN);
+	
+	// Setter frame-formatet: 8data, 2 stop bit
+	UCSRC = (1<<URSEL)|(1<<USBS)|(3<<UCSZ0);
+	*/
+}
+
+ISR(USART0_RX_vect){
+  Receive = UDR0; //1 byte of data
+	
+  PORTC ^= 0b00000001;
+  //code for handling received data
+  //use shift register
+
+	  /*
+	   Kode fra et annet prosjekt
+   
+	   void lcdstring(unsigned char r, unsigned char k, char *s){
+	   positioncur(r,k); //Tar inn en verdi for rad og kolonne.
+  
+	  while(*s){
+		lcdsendstring(1,0,*s); //sender data i form av Ascii kode så lenge funksjonen tar inn en tekststreng.
+		_delay_us(28);
+		s++;
+	  }
+	}
+   */
+} 
+
+//Transmit data
+ISR(USART0_TX_vect){
+	//send = 9; arsendata[sndcntr++];
+	//if (send!=0) 
+	PORTC ^= 0b00000010;
+	UDR0 = Receive;
+}
+
+
+// Testprogram
+int main(void)
+{
+	
+	DDRC = (1 << PC0) | (1 << PC1);
+		
+	PORTC = (0 << PC0) | (0 << PC1);
+	
+	//USART_Init	();
+    while(1)
+    {
+		/*
+		PORTC &= ~((1 << PC0) | (1 << PC1));	
+		_delay_ms(1000);
+		PORTC |= (1 << PC0) | (1 << PC1);
+		_delay_ms(1000);
+		
+		 
+		
+		PORTC ^= (1 << PC0);	// Toggler portC pin0 (pin. Lar alle andre pins på portC stå uforandret.
+		_delay_ms(500);		    // Venter 1000 millisekunder = 1 sekund
+		*/
+		
+		/*
+		PORTC |= (1 << PC0);	// Setter portC pin0 høy (1). Lar alle andre pins på portC stå uforandret.
+		//for (int i = 0; i < 1000; i++);
+		_delay_ms(1000);		    // Venter 1000 millisekunder = 1 sekund
+		PORTC |= (0 << PC0);	// Setter portC pin0 lav (0). Lar alle andre pins på portC stå uforandret.
+		//for (int i = 0; i < 1000; i++);
+		_delay_ms(1000);		    // Venter 1000 millisekunder = 1 sekund
+		*/
+		
+    } 
+	return 0;		// Her kommer vi ikke
+	
+} 
