@@ -1,2 +1,2 @@
 # Byggern29
-Repo for group 29 in project 'Byggern'
+Repository for group 29 in project 'Byggern'
