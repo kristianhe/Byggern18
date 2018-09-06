@@ -5,7 +5,6 @@
  *  Author: Simon
  */
 #include "uart.h"
-#include "memory.h"
 #include "setup.h"
 #include "util.h"
 #include <avr/io.h>
