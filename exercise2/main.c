@@ -5,9 +5,8 @@
  *  Author: Simon
  */
 #include "uart.h"
-#include "memory.h"
 #include "setup.h"
-#include "util.h"
+#include "Util.h"
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
@@ -20,10 +19,10 @@ int main(void)
 		UART_Init(MYUBRR);	// Finner MYUBRR i setup.h
 		printf("Vi har kontakt.\n\r");
 
-		blink();
+		//blink();
 		// Muliggj�r globale interrupts
 		// sei();
-			USART_Flush();
+			//USART_Flush();
 
 	    while(1)
 	    {
