@@ -6,7 +6,8 @@
 #define MYUBRR (F_OSC-250)/16/BAUD-1		// ER DETTE KORREKT?????
 //#define MYUBRR ((F_OSC)/(16*BAUD))-1		// HVA MED DETTE???????
 
-// Nyttige forenklinger. Funnet i labmanualen. Forenkler det ï¿½ sette bits i registere.
+// Nyttige forenklinger. Funnet i labmanualen. Forenkler det å sette bits i registere.
 #define set_bit(reg,bit) (reg |= (1 << bit))
 #define clear_bit(reg,bit) (reg &= ~(1 << bit))
-#define test_bit(reg,bit) (reg & (1 << bit))
+#define test_bit( reg, bit ) (reg & (1 << bit))
+
