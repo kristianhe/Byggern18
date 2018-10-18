@@ -1,0 +1,23 @@
+## Lag følgende plots ##
+
+# PART 2:(2 plots) #
+Lage figur som viser respons av transferfunksjonene vi valgte i 2.1 og 2.2.
+Poeng: vise at de er stabile.
+
+# PART 3: (1 plot) #
+Sammenligne helicopterets respons i 3.2 og 3.3 (med og uten integral effekt).
+Data i filene 'Data_part_3_2' og 'Data_part_3_3' inkluderer måledata pluss en steg-respons.
+Poeng: vise forskjell med og uten integral.
+
+# PART 4: (5 plots) #
+Sammenlign real- og est-verdier i 4.2 både med og uten integral effekt. (2 plots)
+Data for LQR i filene 'Data_part_4_2_LQR_est' og 'Data_part_4_2_LQR_real' og data for Integral i filene 'Data_part_4_2_Integral_est' 
+og 'Data_part_4_2_Integral_real'.
+Poeng: vise at vi minimerte støy med estimatoren, til tross for at responsen ble dårligere.
+
+Sammenlign real- og est-verdier i 4.3 for controlleren med mye støy/ok respons og lite støy/dårlig respons. (2 plots)
+Data i filene 'Data_part_4_3_est_clean', 'Data_part_4_3_real_clean', 'Data_part_4_3_est_noisy' og 'Data_part_4_3_real_noisy'.
+Poeng: pitch er veldig støyete uansett, men vi klarte å redusere støy hos vinkelhastighetene.
+
+Sammenlign real- og est-verdier i 4.3 for controlleren når vi har inkludert integral effekten. (1 plot)
+Poeng: responsen er like dårlig. Å fjerne en state er veldig utslagsvirkende for responsen.
