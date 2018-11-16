@@ -1,106 +1,206 @@
-/*This file has been prepared for Doxygen automatic documentation generation.*/
-/*! \file *********************************************************************
- *
- * \brief Example of use of general PID implementation for AVR.
- *
- * Example of how to setup and use the general PID implementation in pid.c.
- *
- * - File:               main.c
- * - Compiler:           IAR EWAAVR 4.11A
- * - Supported devices:  All AVR devices can be used.
- * - AppNote:            AVR221 - Discrete PID controller
- *
- * \author               Atmel Corporation: http://www.atmel.com \n
- *                       Support email: avr@atmel.com
- *
- * $Name$
- * $Revision: 456 $
- * $RCSfile$
- * $Date: 2006-02-16 12:46:13 +0100 (to, 16 feb 2006) $
- *****************************************************************************/
 
-#include <inavr.h>
-#include <ioavr.h>
-#include "stdint.h"
+#include "setup.h"
+#include "uart.h"
+#include "util.h"
+#include "adc.h"
+#include "slider.h"
+#include "joystick.h"
+#include "spi.h"
+#include "MCP2515.h"
+#include "can.h"
+#include "timer.h"
+#include "Motor_driver.h"
 #include "pid.h"
 
-#define K_P     1.00
-#define K_I     0.00
+#include <stdbool.h>
+#include <stdio.h>
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
 
-
+// PI
+#define K_P		1
+#define K_I 	0
+#define K_D 	2
+#define TIME_INTERVAL 157
 struct PID_DATA pidData;
 
-#define TIME_INTERVAL   157
+bool Deltime = false;
+bool INTflag = false;
 
-#pragma vector = TIMER0_OVF_vect
-__interrupt void TIMER0_OVF_ISR( void )
-{
-  static uint16_t i = 0;
-  if(i < TIME_INTERVAL)
-    i++;
-  else{
-    PIDflag = true;
-    i = 0;
-  }
+//Global counters
+uint8_t trigCounter = 0;
+uint8_t timeStep = 0;
+uint8_t startupCounter = 0;
+
+//Timer0 overflow interrupt
+ISR(TIMER0_OVF_vect){
+	trigCounter++;
+	timeStep++;
+	startupCounter++;
 }
 
-/*! \brief Init of PID controller demo
- */
-void Init(void)
-{
-  pid_Init(K_P * SCALING_FACTOR, K_I * SCALING_FACTOR, &pidData);
-
-  TCCR0A = (1<<CS00);
-  TIMSK0 = (1<<TOIE0);
-  TCNT0 = 0;
+//Timer1 overflow interrupt
+ISR(TIMER1_OVF_vect){
 }
 
-void main(void)
-{
-  int16_t referenceValue, measurementValue, inputValue;
-  Init();
-
-  while(1){
-
-    // Run PID calculations once every PID timer timeout
-    if(PIDflag)
-    {
-      referenceValue = Get_Reference();			// Hent joystickverdi
-      measurementValue = Get_Measurement();		// Hent enkoderverdi
-
-      inputValue = pid_Controller(referenceValue, measurementValue, &pidData);
-
-      Set_Input(inputValue);					// Send verdi til motoren
-
-      PIDflag = false;
-    }
-  }
+//Initialize the drivers
+void drivers(){
+	UART_Init(MYUBRR);
+	PWM_init();
+	timer0_init();
+	timer1_init();
+	canInit();
+	IR_Init();
+	MotorInit();
+	pid_Init(K_P, K_I, K_D, &pidData);
 }
 
-/*! \mainpage
- * \section Intro Introduction
- * This documents data structures, functions, variables, defines, enums, and
- * typedefs in the software for application note AVR221.
- *
- * \section CI Compilation Info
- * This software was written for the IAR Embedded Workbench 4.11A.
- *
- * To make project:
- * <ol>
- * <li> Add the file main.c and pid.c to project.
- * <li> Under processor configuration, select desired Atmel AVR device.
- * <li> Enable bit definitions in I/O include files
- * <li> High optimization on speed is recommended for best performance
- * </ol>
- *
- * \section DI Device Info
- * The included source code is written for all Atmel AVR devices.
- *
- * \section TDL ToDo List
- * \todo Put in own code in:
- * \ref Get_Reference(void), \ref Get_Measurement(void) and \ref Set_Input(int16_t inputValue)
- *
- * \todo Modify the \ref K_P (P), \ref K_I (I) and \ref K_D (D) gain to adapt to your application
- * \todo Specify the sampling interval time \ref TIME_INTERVAL
- */
+int main(void)
+{
+	DDRE |= (1<<PE4);
 
+	drivers();
+	OCR3A = 3200;
+
+	//Inputs and Outputs
+	uint8_t servoVal = 0;
+	uint8_t joyPos_x = 0;
+	uint8_t dirVal = 0;
+	uint8_t solenoid = 0;
+	uint8_t sliderPos = 0;
+	uint8_t IR_value = 255;
+
+	//For PID controller
+	uint16_t enc = 0;
+	int motorInput = 0;
+	uint16_t tmpEnc1 = 0;
+	uint16_t tmpEnc2 = 0;
+	int deltaEnc = 0;
+
+	//Boolean control variables
+	bool startFlag = false;
+	bool trigFlag = false;
+	bool trigCountFlag = false;
+
+	//For state machine
+	bool oddFlag = true;
+	bool evenFlag = false;
+	bool calcDelta = false;
+	bool pidFlag = false;
+
+	CAN_frame RXtest;
+	RXtest.id = 0;
+	RXtest.length = 5;
+	RXtest.data[0] = 1;   //x pos
+	RXtest.data[1] = 2;   //y pos
+	RXtest.data[2] = 3; 	//x dir
+	RXtest.data[3] = 4; 	//button
+	RXtest.data[4] = 5; 	//sliPosLeft
+
+	sei();
+
+	//Reseting the position for the DC-motor and encoder
+	while((startupCounter < 80) && !(startFlag)){
+		PORTH |= (1 << DIR);
+		DAC_Write(128);
+	}
+	Encoder_Reset();
+
+	printf("Node 2 opertional\n");
+	
+	
+	// TESTLOGIKK FOR STYRING VIA GUI
+	unsigned char guidata = "";
+	servoVal = 127;
+	solenoid = 0;
+	sliderPos = 127;
+	
+	
+	while(1)
+	{
+		MotorContrl(motorInput);
+		enc = Scale16(EncoderRead(), 10000, 200, 255, 0);
+		OCR3A = Scale(servoVal, 255,0, 4600, 1800);
+		IR_value = IR_Read_withFilter();
+		
+		/*
+		if (canRecive(&RXtest))
+		{
+			servoVal = RXtest.data[0];
+			dirVal =  RXtest.data[2];
+			solenoid = RXtest.data[3];
+			sliderPos = RXtest.data[4];
+		}
+		*/
+		
+		// NY FOR GUI. UART_Receive_GUI() returnerer 1 om det er ulest data i RX-bufferen, og putter dataen i guidata. Returnerer 0 om vi ikke har mottatt noe.
+		if (UART_Receive_GUI(&guidata))
+		{
+			if (guidata[1] == 'S')		// Solenoid
+			{
+				solenoid = (uint8_t)guidata[2];
+			}
+			else if (guidata[1] == 'D')	// Servo
+			{
+				servoVal = (uint8_t)guidata[2];
+			}
+			else if (guidata[1] == 'R')	// DC-motor referanse (slider)
+			{
+				sliderPos = (uint8_t)guidata[2];
+			}
+			else if (guidata[1] == 'C') // PID-verdier
+			{
+				// Gjør ingenting enda
+			}
+		}
+
+		//State machine ---------------------------------------
+		if (((timeStep%2) == 0) && (oddFlag) && !(evenFlag)){ //Previous encoder value, sample at odd numbers of the counter value
+			tmpEnc1 = enc;
+			oddFlag = false;
+			evenFlag = true;
+		}
+		else if (((timeStep%2) != 0) && (evenFlag) && !(oddFlag)){ //current encoder value, sample at even numbers of the counter value
+			tmpEnc2 = enc;
+			evenFlag = false;
+			calcDelta = true;
+		}
+		if (calcDelta){
+			deltaEnc = (int)(tmpEnc2 - tmpEnc1);
+			calcDelta = false;
+			pidFlag = true;
+		}
+		if (pidFlag){
+			motorInput = pid_Controller(sliderPos, enc, timeStep, deltaEnc, &pidData);
+			pidFlag = false;
+			oddFlag = true;
+		}
+		//--------------------------------------------------------
+
+		// Logic for solenoid trigering--------------------------
+		if (solenoid == 133) trigFlag = true;
+		if (trigFlag){
+			PORTE |= (1<<PE4);
+			printf("jalla \n");
+			trigFlag = false;
+			trigCountFlag = true;
+			trigCounter = 0;
+		}
+		if ((trigCountFlag) && (trigCounter > 10)){
+			PORTE &= ~(1<<PE4);
+			printf("not jalla \n");
+			trigCountFlag = false;
+			trigCounter = 0;
+		}
+		//--------------------------------------------------------
+
+		if(timeStep > 10)
+	  {
+			timeStep = 0; //reseting the counter
+		}
+
+	}
+
+	return 0;
+}
