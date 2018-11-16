@@ -45,7 +45,7 @@ void USART_Flush( void )
 // NY FOR GUI
 uint8_t UART_Receive_GUI(unsigned char * guidata)
 {
-	if (!(UCSR0A & (1<<RXC0)))
+	if ((UCSR0A & (1<<RXC0)))
 	{
 		guidata = UDR0;	// Clearer RXC-flagget når vi leser fra UDR.
 		return 1;

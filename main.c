@@ -134,24 +134,63 @@ int main(void)
 		}
 		*/
 		
+		
+		// -----------------------------------------------------------------------------------------------------------------------------------------------------
 		// NY FOR GUI. UART_Receive_GUI() returnerer 1 om det er ulest data i RX-bufferen, og putter dataen i guidata. Returnerer 0 om vi ikke har mottatt noe.
 		if (UART_Receive_GUI(&guidata))
 		{
+			char *temp = "";
+			
+			for (uint8_t i = 0; i < (length(guidata) - 3); i++)
+			{
+				temp += guidata[i + 2];
+			}
+			
+			//int guiValue = atoi(temp);
+			
 			if (guidata[1] == 'S')		// Solenoid
 			{
-				solenoid = (uint8_t)guidata[2];
+				solenoid = atoi(temp);
 			}
 			else if (guidata[1] == 'D')	// Servo
 			{
-				servoVal = (uint8_t)guidata[2];
+				servoVal = atoi(temp);
 			}
 			else if (guidata[1] == 'R')	// DC-motor referanse (slider)
 			{
-				sliderPos = (uint8_t)guidata[2];
+				sliderPos = atoi(temp);
 			}
 			else if (guidata[1] == 'C') // PID-verdier
 			{
-				// Gjør ingenting enda
+				// Gets the PID-values from the string guidata.
+				
+														// $CP5I6D7#   length = 9			$Cp90i50d1#		length = 11
+				char *fromKp = strchr(guidata, 'P');	// P5I6D7#	   length = 7			p90i50d1#		length = 9
+				char *fromKi = strchr(guidata, 'I');	// I6D7#	   length = 5			i50d1#			length = 6
+				char *fromKd = strchr(guidata, 'D');	// D7#		   length = 3			d1#				length = 3
+				
+				char *tempP = "";
+				char *tempI = "";
+				char *tempD = "";
+				
+				for (uint8_t i = (length(guidata) - length(fromKp) + 1); i < (length(guidata) - length(fromKi)); i++)
+				{
+					tempP += guidata[i];
+				}
+				for (uint8_t i = (length(guidata) - length(fromKi) + 1); i < (length(guidata) - length(fromKd)); i++)
+				{
+					tempI += guidata[i];
+				}
+				for (uint8_t i = (length(guidata) - length(fromKd) + 1); i < (length(guidata) - 1); i++)
+				{
+					tempD += guidata[i];
+				}
+				
+				int16_t KP = atoi(tempP);
+				int16_t KI = atoi(tempI);
+				int16_t KD = atoi(tempD);
+				
+				pid_ChangeControllerValues(KP, KI, KD, &pidData);
 			}
 		}
 

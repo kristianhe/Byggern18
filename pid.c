@@ -1,52 +1,43 @@
-/*This file has been prepared for Doxygen automatic documentation generation.*/
-/*! \file *********************************************************************
- *
- * \brief General PID implementation for AVR.
- *
- * Discrete PID controller implementation. Set up by giving P/I/D terms
- * to Init_PID(), and uses a struct PID_DATA to store internal values.
- *
- * - File:               pid.c
- * - Compiler:           IAR EWAAVR 4.11A
- * - Supported devices:  All AVR devices can be used.
- * - AppNote:            AVR221 - Discrete PID controller
- *
- * \author               Atmel Corporation: http://www.atmel.com \n
- *                       Support email: avr@atmel.com
- *
- * $Name$
- * $Revision: 456 $
- * $RCSfile$
- * $Date: 2006-02-16 12:46:13 +0100 (to, 16 feb 2006) $
- *****************************************************************************/
-
 #include "pid.h"
-#include "stdint.h"
 
-void pid_Init(int16_t Kp_in, int16_t Ki_in, struct PID_DATA *pid)
+void pid_Init(int16_t Kp_in, int16_t Ki_in, int16_t Kd_in, struct PID_DATA *pid)
 {
   pid->sumError = 0;
   pid->Kp = Kp_in;
   pid->Ki = Ki_in;
+  pid->Kd = Kd_in;
 }
 
-int16_t pid_Controller(int16_t setPoint, int16_t processValue, struct PID_DATA *pid_st)
+int pid_Controller(int16_t setPoint, int16_t processValue, uint8_t Timestep, int deltaError, struct PID_DATA *pid_st)
 {
-  int16_t error, p;
-  int32_t i, ret;
+  int p ,i ,d ,u, error;
 
-  error = setPoint - processValue;
-  pid_st->sumError += error;
+  error = (int)(setPoint - processValue);
 
-  p = pid_st->Kp * error;  
+  if (Timestep == 0) pid_st->sumError = error;
+  else pid_st->sumError += error;
+
+  p = pid_st->Kp * error;
   i = pid_st->Ki * pid_st->sumError;
+  d = pid_st->Kd * deltaError;
 
-  ret = (p + i) / SCALING_FACTOR;
+  u =  p + i + d;
 
-  return((int16_t)((p + i) / SCALING_FACTOR));
+  return u; //u = Kp*e + Ki*int(e)
 }
 
 void pid_Reset_Integrator(pidData_t *pid_st)
 {
   pid_st->sumError = 0;
+}
+
+
+
+// -----------------------------------------------------------------------
+// NY FOR GUI: OPPDATERE PID-VERDIER "ONLINE" / "LIVE"
+void pid_ChangeControllerValues(int16_t Kp_in, int16_t Ki_in, int16_t Kd_in, struct PID_DATA *pid)
+{
+	pid->Kp = Kp_in;
+	pid->Ki = Ki_in;
+	pid->Kd = Kd_in;
 }
